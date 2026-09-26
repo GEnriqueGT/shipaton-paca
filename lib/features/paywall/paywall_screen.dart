@@ -57,10 +57,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       _error = null;
     });
     try {
-      final customerInfo = await Purchases.purchasePackage(package);
+      final result = await Purchases.purchase(
+        PurchaseParams.package(package),
+      );
       await ref.read(customerInfoProvider.notifier).refresh();
       final active =
-          customerInfo.entitlements.active.containsKey(_entitlement);
+          result.customerInfo.entitlements.active.containsKey(_entitlement);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

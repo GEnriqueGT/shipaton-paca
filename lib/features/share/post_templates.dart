@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/models.dart';
+import 'product_stage.dart';
 
 final _gtq = NumberFormat.currency(locale: 'es_GT', symbol: 'Q');
 
@@ -32,7 +35,7 @@ class PlainPostTemplate extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: paca.photoUrls.first,
                 fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => const ColoredBox(
+                errorWidget: (_, _, _) => const ColoredBox(
                   color: Color(0xFFEEEEEE),
                   child: Icon(Icons.image_not_supported),
                 ),
@@ -85,127 +88,205 @@ class BrandedPostTemplate extends StatelessWidget {
     required this.brandColor,
     this.storeName,
     this.logoUrl,
+    this.backgroundBytes,
+    this.generatedAdBytes,
+    this.showWatermark = false,
   });
 
   final Paca paca;
   final Color brandColor;
   final String? storeName;
   final String? logoUrl;
+  final Uint8List? backgroundBytes;
+  final Uint8List? generatedAdBytes;
+  final bool showWatermark;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final name = (storeName == null || storeName!.trim().isEmpty)
+        ? 'Mi tienda'
+        : storeName!.trim();
+
+    return SizedBox(
       width: 360,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            brandColor,
-            Color.lerp(brandColor, Colors.black, 0.35)!,
-          ],
-        ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              if (logoUrl != null && logoUrl!.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: logoUrl!,
-                    width: 44,
-                    height: 44,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              else
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    (storeName ?? 'P').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  storeName ?? 'Mi tienda',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: paca.photoUrls.isNotEmpty
-                ? AspectRatio(
-                    aspectRatio: 1,
-                    child: CachedNetworkImage(
-                      imageUrl: paca.photoUrls.first,
+          Positioned.fill(child: _backdrop()),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 28, 16, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (generatedAdBytes != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(
+                      generatedAdBytes!,
+                      width: 328,
+                      height: 320,
                       fit: BoxFit.cover,
                     ),
                   )
-                : const AspectRatio(
-                    aspectRatio: 1,
-                    child: ColoredBox(
-                      color: Colors.white24,
-                      child: Icon(Icons.checkroom, size: 64, color: Colors.white),
-                    ),
-                  ),
+                else
+                  ProductStage(child: _product()),
+                const SizedBox(height: 4),
+                _footer(name),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            paca.title,
+          if (showWatermark)
+            const Positioned.fill(
+              child: IgnorePointer(child: _PreviewWatermark()),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer(String name) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _logo(name),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            paca.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            _gtq.format(paca.priceGtq),
+            style: TextStyle(
+              color: brandColor,
               fontWeight: FontWeight.w800,
+              fontSize: 13,
             ),
           ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              _gtq.format(paca.priceGtq),
-              style: TextStyle(
-                color: brandColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _backdrop() {
+    final bytes = backgroundBytes;
+    if (bytes != null) {
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+    final deep = Color.lerp(brandColor, Colors.black, 0.18)!;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.15),
+          radius: 0.95,
+          colors: [brandColor, deep],
+        ),
+      ),
+    );
+  }
+
+  Widget _logo(String name) {
+    if (logoUrl != null && logoUrl!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: CachedNetworkImage(
+          imageUrl: logoUrl!,
+          width: 22,
+          height: 22,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white24,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        name.substring(0, 1).toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _product() {
+    if (paca.photoUrls.isEmpty) {
+      return const Icon(Icons.checkroom, size: 96, color: Colors.white);
+    }
+    return ProductPhoto(url: paca.photoUrls.first);
+  }
+}
+
+class _PreviewWatermark extends StatelessWidget {
+  const _PreviewWatermark();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: ColoredBox(
+        color: const Color(0x22000000),
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: Transform.rotate(
+            angle: -0.5,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _WatermarkLine(),
+                SizedBox(height: 48),
+                _WatermarkLine(),
+                SizedBox(height: 48),
+                _WatermarkLine(),
+              ],
             ),
           ),
-          if (paca.category != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              '#${paca.category} · Guatemala',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WatermarkLine extends StatelessWidget {
+  const _WatermarkLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'VISTA PREVIA',
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.42),
+        fontSize: 28,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 4,
       ),
     );
   }
