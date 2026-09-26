@@ -104,9 +104,24 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
   }
 
+  List<Package> _packagesForRole(List<Package> packages) {
+    final store = widget.role == UserRole.store;
+    return packages.where((pkg) {
+      final blob =
+          '${pkg.identifier} ${pkg.storeProduct.identifier} ${pkg.storeProduct.title} ${pkg.storeProduct.description}'
+              .toLowerCase();
+      if (store) {
+        return blob.contains('tienda') || blob.contains('store');
+      }
+      return blob.contains('comprador') || blob.contains('buyer');
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final packages = _offerings?.current?.availablePackages ?? [];
+    final packages = _packagesForRole(
+      _offerings?.current?.availablePackages ?? [],
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(_headline)),

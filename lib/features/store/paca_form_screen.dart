@@ -8,6 +8,7 @@ import '../../core/constants/guatemala.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
+import '../share/save_ad.dart';
 import 'my_pacas_screen.dart';
 
 class PacaFormScreen extends ConsumerStatefulWidget {
@@ -133,7 +134,7 @@ class _PacaFormScreenState extends ConsumerState<PacaFormScreen> {
       } else {
         final user = ref.read(currentUserProvider);
         if (user == null) return;
-        await PacaRepository(ref.read(supabaseProvider)).upsert(
+        final saved = await PacaRepository(ref.read(supabaseProvider)).upsert(
           id: widget.pacaId,
           storeId: user.id,
           title: _title.text.trim(),
@@ -144,6 +145,23 @@ class _PacaFormScreenState extends ConsumerState<PacaFormScreen> {
           photoUrls: _photoUrls,
           status: _status,
         );
+        final premium = ref.read(entitlementGatesProvider).hasStorePremium;
+        if (premium && _photoUrls.isNotEmpty) {
+          try {
+            final profile = await ref.read(profileProvider.future);
+            await generateAndStoreAd(ref, paca: saved, profile: profile);
+          } catch (_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Producto guardado. No se pudo generar la imagen de Pro.',
+                  ),
+                ),
+              );
+            }
+          }
+        }
       }
       ref.invalidate(storePacasProvider);
       if (mounted) context.pop();
@@ -163,7 +181,7 @@ class _PacaFormScreenState extends ConsumerState<PacaFormScreen> {
     _loadExisting();
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.pacaId == null ? 'Nueva paca' : 'Editar paca'),
+        title: Text(widget.pacaId == null ? 'Nuevo producto' : 'Editar producto'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

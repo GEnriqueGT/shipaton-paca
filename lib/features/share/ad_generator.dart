@@ -14,17 +14,38 @@ class AdGenerationException implements Exception {
   String toString() => message;
 }
 
-String studioAdPrompt(String brandHex) {
+String studioAdPrompt({
+  required String brandHex,
+  required String storeName,
+  required String title,
+  required String priceLabel,
+  String sizes = '',
+  String details = '',
+}) {
   final hex = brandHex.trim().startsWith('#') ? brandHex.trim() : '#${brandHex.trim()}';
-  return 'Create a NEW photorealistic 3D apparel mockup from the reference photo. '
-      'Do not return the original flat, front-facing catalog photo. '
-      'Re-render the same shirt twice, floating in mid-air on a solid $hex background: '
-      'left is the back view turned about 20 degrees, '
-      'right is the front view in a three-quarter 3D angle so the sleeve and side are visible. '
-      'Both pieces need volume, collar depth, fabric folds and a soft floor shadow, '
-      'like a premium clothing render. '
-      'No person, no mannequin, no hanger, no text, no logo, no watermark. '
-      'Square composition.';
+  final sizesLine = sizes.trim().isEmpty
+      ? ''
+      : '- Under the title, a smaller sizes line: ${sizes.trim()}\n';
+  final detailsLine = details.trim().isEmpty
+      ? ''
+      : '- One short supporting line, smaller still: ${details.trim()}\n';
+  return 'Create a square fashion poster from the reference photo, like a premium clothing mockup. '
+      'Do not return the original flat catalog photo. '
+      'Solid $hex background with a soft vertical gradient, lighter above and deeper below. '
+      'No room, no outer frame, no footer bar, no watermark.\n'
+      'LEFT HALF: the garment only. '
+      'Re-render the same shirt twice, floating, with volume, collar depth, fabric folds and one soft shadow. '
+      'The back view sits slightly behind and higher. '
+      'The front view is larger, in front, in a three-quarter angle so the sleeve and side are visible. '
+      'Do not write on the shirts and do not put lettering in the center.\n'
+      'RIGHT HALF: editorial typography, aligned to the left of that column and vertically centered with the shirts. '
+      'Not centered on the canvas. Not a caption along the bottom. Not a sentence.\n'
+      '- Small store name at the top of the column: $storeName\n'
+      '- Huge stylized product name in bold condensed white type, stacked on two or three lines like a poster headline: $title\n'
+      '$sizesLine'
+      '- Bold price in the same right column, under the name: $priceLabel\n'
+      '$detailsLine'
+      'No person, no mannequin, no hanger.';
 }
 
 /// Pulls the first generated image out of an OpenRouter chat response.
@@ -72,6 +93,11 @@ Future<Uint8List> fetchImageBytes(String url) async {
 Future<Uint8List> generateStudioAd({
   required Uint8List photo,
   required String brandHex,
+  required String storeName,
+  required String title,
+  required double priceGtq,
+  String sizes = '',
+  String details = '',
   String? apiKey,
   String? model,
 }) async {
@@ -92,7 +118,17 @@ Future<Uint8List> generateStudioAd({
       {
         'role': 'user',
         'content': [
-          {'type': 'text', 'text': studioAdPrompt(brandHex)},
+          {
+            'type': 'text',
+            'text': studioAdPrompt(
+              brandHex: brandHex,
+              storeName: storeName,
+              title: title,
+              priceLabel: _priceLabel(priceGtq),
+              sizes: sizes,
+              details: details,
+            ),
+          },
           {
             'type': 'image_url',
             'image_url': {'url': dataUrl},
@@ -172,6 +208,12 @@ Uint8List? _bytesFromDataUrl(String value) {
   } catch (_) {
     return null;
   }
+}
+
+String _priceLabel(double priceGtq) {
+  final whole = priceGtq == priceGtq.roundToDouble();
+  final amount = whole ? priceGtq.toStringAsFixed(0) : priceGtq.toStringAsFixed(2);
+  return 'Q $amount';
 }
 
 String _mimeFor(Uint8List bytes) {

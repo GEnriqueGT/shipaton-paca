@@ -11,6 +11,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
 import '../share/ad_generator.dart';
 import '../share/post_templates.dart';
+import '../share/save_ad.dart';
 import '../share/share_service.dart';
 import 'my_pacas_screen.dart';
 
@@ -28,6 +29,7 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
   bool _wantBranded = false;
   bool _sharing = false;
   bool _generating = false;
+  bool _autoStarted = false;
   Uint8List? _backgroundBytes;
   Uint8List? _generatedAd;
   String? _generatedFor;
@@ -53,13 +55,26 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
           final profile = AppConfig.hasSupabase
               ? ref.watch(profileProvider).valueOrNull
               : DemoStore.instance.profile;
-          final useBranded = _wantBranded;
+          final hasSavedAd = paca.adUrl != null && paca.adUrl!.isNotEmpty;
+          final useBranded = canBrand || _wantBranded;
           final generatedAd =
               _generatedFor == paca.id ? _generatedAd : null;
+          if (canBrand &&
+              !hasSavedAd &&
+              !_autoStarted &&
+              !_generating &&
+              paca.photoUrls.isNotEmpty &&
+              AppConfig.hasOpenRouter) {
+            _autoStarted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _generateAd(paca, profile);
+            });
+          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (!canBrand)
               SwitchListTile(
                 title: const Text('Plantilla branded (Pro)'),
                 subtitle: Text(
@@ -74,10 +89,7 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
                       AppConfig.hasOpenRouter &&
                       !_generating &&
                       generatedAd == null) {
-                    _generateAd(
-                      paca,
-                      profile?.brandColor ?? '#1B5E20',
-                    );
+                    _generateAd(paca, profile);
                   }
                 },
               ),
@@ -87,10 +99,7 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
                   OutlinedButton.icon(
                     onPressed: _generating
                         ? null
-                        : () => _generateAd(
-                              paca,
-                              profile?.brandColor ?? '#1B5E20',
-                            ),
+                        : () => _generateAd(paca, profile),
                     icon: _generating
                         ? const SizedBox(
                             width: 18,
@@ -101,9 +110,9 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
                     label: Text(
                       _generating
                           ? 'Generando imagen'
-                          : generatedAd == null
+                          : generatedAd == null && !hasSavedAd
                               ? 'Generar publicidad'
-                              : 'Generar de nuevo',
+                              : 'Regenerar',
                     ),
                   )
                 else
@@ -157,6 +166,8 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
                           logoUrl: profile?.logoUrl,
                           backgroundBytes: _backgroundBytes,
                           generatedAdBytes: generatedAd,
+                          generatedAdUrl:
+                              generatedAd == null && hasSavedAd ? paca.adUrl : null,
                           showWatermark: !canBrand,
                         )
                       : PlainPostTemplate(
@@ -206,7 +217,7 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
     );
   }
 
-  Future<void> _generateAd(Paca paca, String brandHex) async {
+  Future<void> _generateAd(Paca paca, Profile? profile) async {
     if (paca.photoUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Agrega una foto antes de generar')),
@@ -215,13 +226,31 @@ class _PublishScreenState extends ConsumerState<PublishScreen> {
     }
     setState(() => _generating = true);
     try {
-      final photo = await fetchImageBytes(paca.photoUrls.first);
-      final ad = await generateStudioAd(photo: photo, brandHex: brandHex);
-      if (!mounted) return;
-      setState(() {
-        _generatedAd = ad;
-        _generatedFor = paca.id;
-      });
+      final premium = ref.read(entitlementGatesProvider).hasStorePremium;
+      if (premium) {
+        await generateAndStoreAd(ref, paca: paca, profile: profile);
+        ref.invalidate(storePacasProvider);
+      } else {
+        final photo = await fetchImageBytes(paca.photoUrls.first);
+        final details = [
+          paca.description,
+          paca.category,
+        ].whereType<String>().where((part) => part.trim().isNotEmpty).join(' · ');
+        final ad = await generateStudioAd(
+          photo: photo,
+          brandHex: profile?.brandColor ?? '#1B5E20',
+          storeName: profile?.displayName ?? paca.storeName ?? 'Tienda',
+          title: paca.title,
+          priceGtq: paca.priceGtq,
+          sizes: paca.sizeMix ?? '',
+          details: details,
+        );
+        if (!mounted) return;
+        setState(() {
+          _generatedAd = ad;
+          _generatedFor = paca.id;
+        });
+      }
     } on AdGenerationException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

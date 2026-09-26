@@ -7,7 +7,15 @@ import 'package:intl/intl.dart';
 import '../../core/config/app_config.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
-import 'buyer_explore_screen.dart';
+import '../../core/providers/app_providers.dart';
+
+final _pacaProvider = FutureProvider.autoDispose.family<Paca?, String>((ref, id) async {
+  if (!AppConfig.hasSupabase) {
+    DemoStore.instance.seedIfNeeded();
+    return DemoStore.instance.pacas.where((paca) => paca.id == id).firstOrNull;
+  }
+  return PacaRepository(ref.watch(supabaseProvider)).fetchById(id);
+});
 
 class PacaDetailScreen extends ConsumerWidget {
   const PacaDetailScreen({super.key, required this.pacaId});
@@ -18,28 +26,18 @@ class PacaDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pacas = ref.watch(explorePacasProvider);
+    final paca = ref.watch(_pacaProvider(pacaId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle')),
-      body: pacas.when(
+      appBar: AppBar(title: const Text('Producto')),
+      body: paca.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
-        data: (items) {
-          final paca = items.where((p) => p.id == pacaId).firstOrNull;
-          if (paca == null) {
-            // Try store list / demo all
-            final fallback = !AppConfig.hasSupabase
-                ? DemoStore.instance.pacas
-                    .where((p) => p.id == pacaId)
-                    .firstOrNull
-                : null;
-            if (fallback == null) {
-              return const Center(child: Text('Paca no encontrada'));
-            }
-            return _body(context, fallback);
+        data: (item) {
+          if (item == null) {
+            return const Center(child: Text('Producto no encontrado'));
           }
-          return _body(context, paca);
+          return _body(context, item);
         },
       ),
     );
@@ -51,8 +49,8 @@ class PacaDetailScreen extends ConsumerWidget {
       children: [
         AspectRatio(
           aspectRatio: 1,
-          child: paca.photoUrls.isNotEmpty
-              ? Image.network(paca.photoUrls.first, fit: BoxFit.cover)
+          child: paca.heroUrl != null
+              ? Image.network(paca.heroUrl!, fit: BoxFit.cover)
               : const ColoredBox(
                   color: Color(0xFFEEEEEE),
                   child: Icon(Icons.checkroom, size: 72),

@@ -2,169 +2,86 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/guatemala.dart';
 import '../../core/data/repositories.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
+import '../share/post_templates.dart';
 
-final exploreFiltersProvider =
-    StateProvider<({String? department, String? category})>(
-  (ref) => (department: null, category: null),
-);
+final exploreFiltersProvider = StateProvider<String?>((ref) => null);
 
-final explorePacasProvider = FutureProvider.autoDispose<List<Paca>>((ref) async {
-  final filters = ref.watch(exploreFiltersProvider);
+final exploreStoresProvider = FutureProvider.autoDispose<List<Profile>>((ref) async {
+  final department = ref.watch(exploreFiltersProvider);
   if (!AppConfig.hasSupabase) {
     DemoStore.instance.seedIfNeeded();
-    var list = List<Paca>.from(DemoStore.instance.pacas)
-        .where((p) => p.status == PacaStatus.active)
-        .toList();
-    if (filters.department != null) {
-      list = list
-          .where((p) => p.storeDepartment == filters.department)
-          .toList();
-    }
-    if (filters.category != null) {
-      list = list.where((p) => p.category == filters.category).toList();
-    }
-    return list;
+    final profile = DemoStore.instance.profile ??
+        const Profile(
+          id: 'demo-user',
+          role: UserRole.store,
+          displayName: 'Pacas Zona 1',
+          department: 'Guatemala',
+        );
+    if (department != null && profile.department != department) return [];
+    return [profile];
   }
-  return PacaRepository(ref.watch(supabaseProvider)).listActive(
-    department: filters.department,
-    category: filters.category,
-  );
+  final stores =
+      await ProfileRepository(ref.watch(supabaseProvider)).listStores();
+  if (department == null || department.isEmpty) return stores;
+  return stores.where((store) => store.department == department).toList();
 });
 
 class BuyerExploreScreen extends ConsumerWidget {
   const BuyerExploreScreen({super.key});
 
-  static final _gtq = NumberFormat.currency(locale: 'es_GT', symbol: 'Q');
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pacas = ref.watch(explorePacasProvider);
-    final filters = ref.watch(exploreFiltersProvider);
+    final stores = ref.watch(exploreStoresProvider);
+    final department = ref.watch(exploreFiltersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorar pacas')),
+      appBar: AppBar(title: const Text('Tiendas')),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    // ignore: deprecated_member_use
-                    value: filters.department,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Depto',
-                      isDense: true,
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Todos'),
-                      ),
-                      ...guatemalaDepartments.map(
-                        (d) => DropdownMenuItem(value: d, child: Text(d)),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      ref.read(exploreFiltersProvider.notifier).state = (
-                        department: v,
-                        category: filters.category,
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    // ignore: deprecated_member_use
-                    value: filters.category,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Categoría',
-                      isDense: true,
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Todas'),
-                      ),
-                      ...pacaCategories.map(
-                        (c) => DropdownMenuItem(value: c, child: Text(c)),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      ref.read(exploreFiltersProvider.notifier).state = (
-                        department: filters.department,
-                        category: v,
-                      );
-                    },
-                  ),
+            child: DropdownButtonFormField<String?>(
+              initialValue: department,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Departamento',
+                isDense: true,
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todos')),
+                ...guatemalaDepartments.map(
+                  (d) => DropdownMenuItem(value: d, child: Text(d)),
                 ),
               ],
+              onChanged: (v) {
+                ref.read(exploreFiltersProvider.notifier).state = v;
+              },
             ),
           ),
           Expanded(
-            child: pacas.when(
+            child: stores.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('$e')),
               data: (items) {
                 if (items.isEmpty) {
-                  return const Center(child: Text('No hay pacas activas'));
+                  return const Center(
+                    child: Text('Todavía no hay tiendas publicadas'),
+                  );
                 }
                 return RefreshIndicator(
-                  onRefresh: () async => ref.invalidate(explorePacasProvider),
+                  onRefresh: () async => ref.invalidate(exploreStoresProvider),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: items.length,
                     itemBuilder: (context, i) {
-                      final paca = items[i];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: () =>
-                              context.push('/buyer/paca/${paca.id}'),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              AspectRatio(
-                                aspectRatio: 16 / 9,
-                                child: paca.photoUrls.isNotEmpty
-                                    ? CachedNetworkImage(
-                                        imageUrl: paca.photoUrls.first,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : const ColoredBox(
-                                        color: Color(0xFFEEEEEE),
-                                        child: Icon(Icons.checkroom, size: 48),
-                                      ),
-                              ),
-                              ListTile(
-                                title: Text(paca.title),
-                                subtitle: Text(
-                                  '${paca.storeName ?? 'Tienda'} · '
-                                  '${paca.storeDepartment ?? 'GT'}',
-                                ),
-                                trailing: Text(
-                                  _gtq.format(paca.priceGtq),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      final store = items[i];
+                      return _StoreCard(store: store);
                     },
                   ),
                 );
@@ -172,6 +89,58 @@ class BuyerExploreScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StoreCard extends StatelessWidget {
+  const _StoreCard({required this.store});
+
+  final Profile store;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = parseHexColor(store.brandColor);
+    final name = store.displayName?.trim().isNotEmpty == true
+        ? store.displayName!
+        : 'Tienda';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/buyer/store/${store.id}'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 140,
+              child: store.coverUrl != null && store.coverUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: store.coverUrl!,
+                      fit: BoxFit.cover,
+                    )
+                  : ColoredBox(color: brand),
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: brand,
+                backgroundImage:
+                    store.logoUrl != null && store.logoUrl!.isNotEmpty
+                        ? CachedNetworkImageProvider(store.logoUrl!)
+                        : null,
+                child: store.logoUrl == null || store.logoUrl!.isEmpty
+                    ? Text(
+                        name.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      )
+                    : null,
+              ),
+              title: Text(name),
+              subtitle: Text(store.department ?? 'Guatemala'),
+            ),
+          ],
+        ),
       ),
     );
   }

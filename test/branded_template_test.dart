@@ -85,5 +85,7 @@ void main() {
 
     expect(find.byType(Image), findsOneWidget);
     expect(find.byType(ProductStage), findsNothing);
+    expect(find.text('gabrieltiu5'), findsNothing);
+    expect(find.text('playera polo'), findsNothing);
   });
 }

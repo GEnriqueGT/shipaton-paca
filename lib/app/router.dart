@@ -8,6 +8,7 @@ import '../features/auth/auth_screen.dart';
 import '../features/auth/role_picker_screen.dart';
 import '../features/auth/splash_screen.dart';
 import '../features/buyer/buyer_shell.dart';
+import '../features/buyer/buyer_store_screen.dart';
 import '../features/buyer/paca_detail_screen.dart';
 import '../features/paywall/paywall_screen.dart';
 import '../features/store/paca_form_screen.dart';
@@ -46,7 +47,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (loc == '/role') {
-        final profile = ref.read(profileProvider).valueOrNull;
+        final asyncProfile = ref.read(profileProvider);
+        if (asyncProfile.isLoading || asyncProfile.isRefreshing) return null;
+        final profile = asyncProfile.valueOrNull;
         if (profile?.role == UserRole.store) return '/store';
         if (profile?.role == UserRole.buyer) return '/buyer';
         return null;
@@ -99,6 +102,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/buyer',
         builder: (context, state) => const BuyerShell(),
         routes: [
+          GoRoute(
+            path: 'store/:id',
+            builder: (context, state) =>
+                BuyerStoreScreen(storeId: state.pathParameters['id']!),
+          ),
           GoRoute(
             path: 'paca/:id',
             builder: (context, state) =>

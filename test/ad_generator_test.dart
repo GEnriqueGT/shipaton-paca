@@ -59,11 +59,28 @@ void main() {
     );
   });
 
-  test('prompt asks for a 3D front-and-back mockup', () {
-    final prompt = studioAdPrompt('1B5E20');
+  test('prompt bakes store, title, price and details into the image', () {
+    final prompt = studioAdPrompt(
+      brandHex: '1B5E20',
+      storeName: 'gabrielkike9',
+      title: 'playera polo',
+      priceLabel: 'Q 10',
+      sizes: 'S M L',
+      details: 'algodón',
+    );
     expect(prompt, contains('#1B5E20'));
-    expect(prompt, contains('no text'));
+    expect(prompt, contains('LEFT HALF'));
+    expect(prompt, contains('RIGHT HALF'));
     expect(prompt, contains('back view'));
     expect(prompt, contains('three-quarter'));
+    expect(prompt, contains('stylized product name'));
+    expect(prompt, contains('gabrielkike9'));
+    expect(prompt, contains('playera polo'));
+    expect(prompt, contains('S M L'));
+    expect(prompt, contains('Q 10'));
+    expect(prompt, contains('algodón'));
+    expect(prompt, contains('no watermark'));
+    expect(prompt.contains('at the bottom'), isFalse);
+    expect(prompt.contains('no text'), isFalse);
   });
 }

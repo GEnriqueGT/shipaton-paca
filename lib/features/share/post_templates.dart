@@ -90,6 +90,7 @@ class BrandedPostTemplate extends StatelessWidget {
     this.logoUrl,
     this.backgroundBytes,
     this.generatedAdBytes,
+    this.generatedAdUrl,
     this.showWatermark = false,
   });
 
@@ -99,6 +100,7 @@ class BrandedPostTemplate extends StatelessWidget {
   final String? logoUrl;
   final Uint8List? backgroundBytes;
   final Uint8List? generatedAdBytes;
+  final String? generatedAdUrl;
   final bool showWatermark;
 
   @override
@@ -106,6 +108,35 @@ class BrandedPostTemplate extends StatelessWidget {
     final name = (storeName == null || storeName!.trim().isEmpty)
         ? 'Mi tienda'
         : storeName!.trim();
+
+    final generated = generatedAdBytes;
+    final generatedUrl = generatedAdUrl;
+    if (generated != null ||
+        (generatedUrl != null && generatedUrl.isNotEmpty)) {
+      return SizedBox(
+        width: 360,
+        child: Stack(
+          children: [
+            if (generated != null)
+              Image.memory(
+                generated,
+                width: 360,
+                fit: BoxFit.contain,
+              )
+            else
+              CachedNetworkImage(
+                imageUrl: generatedUrl!,
+                width: 360,
+                fit: BoxFit.contain,
+              ),
+            if (showWatermark)
+              const Positioned.fill(
+                child: IgnorePointer(child: _PreviewWatermark()),
+              ),
+          ],
+        ),
+      );
+    }
 
     return SizedBox(
       width: 360,
@@ -117,18 +148,7 @@ class BrandedPostTemplate extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (generatedAdBytes != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(
-                      generatedAdBytes!,
-                      width: 328,
-                      height: 320,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                else
-                  ProductStage(child: _product()),
+                ProductStage(child: _product()),
                 const SizedBox(height: 4),
                 _footer(name),
               ],

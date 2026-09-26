@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -45,6 +47,31 @@ class ProfileRepository {
           ),
         );
     return _client.storage.from('store-logos').getPublicUrl(path);
+  }
+
+  Future<String> uploadCover(String userId, XFile file) async {
+    final ext = p.extension(file.path).isEmpty
+        ? '.jpg'
+        : p.extension(file.path);
+    final path = '$userId/cover$ext';
+    final bytes = await file.readAsBytes();
+    await _client.storage.from('store-logos').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: file.mimeType,
+          ),
+        );
+    return _client.storage.from('store-logos').getPublicUrl(path);
+  }
+
+  Future<List<Profile>> listStores() async {
+    final rows =
+        await _client.from('profiles').select().eq('role', 'store');
+    return (rows as List)
+        .map((e) => Profile.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 }
 
@@ -125,6 +152,46 @@ class PacaRepository {
 
   Future<void> delete(String id) async {
     await _client.from('pacas').delete().eq('id', id);
+  }
+
+  Future<void> setStatus(String id, PacaStatus status) async {
+    await _client.from('pacas').update({'status': status.dbValue}).eq('id', id);
+  }
+
+  Future<void> setAdUrl(String id, String url) async {
+    await _client.from('pacas').update({'ad_url': url}).eq('id', id);
+  }
+
+  Future<Paca?> fetchById(String id) async {
+    final data = await _client
+        .from('pacas')
+        .select('*, profiles(display_name, phone_whatsapp, department)')
+        .eq('id', id)
+        .maybeSingle();
+    if (data == null) return null;
+    return Paca.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  Future<List<Paca>> listPublished(String storeId) async {
+    final rows = await _client
+        .from('pacas')
+        .select()
+        .eq('store_id', storeId)
+        .eq('status', 'active')
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .map((e) => Paca.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<String> uploadAdBytes(String storeId, Uint8List bytes) async {
+    final path = '$storeId/ad-${_uuid.v4()}.png';
+    await _client.storage.from('paca-photos').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(contentType: 'image/png'),
+        );
+    return _client.storage.from('paca-photos').getPublicUrl(path);
   }
 
   Future<String> uploadPhoto(String storeId, XFile file) async {

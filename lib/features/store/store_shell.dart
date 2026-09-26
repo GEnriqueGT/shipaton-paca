@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'brand_screen.dart';
 import 'my_pacas_screen.dart';
 import 'store_pro_screen.dart';
-import 'store_publish_tab.dart';
 
 class StoreShell extends ConsumerStatefulWidget {
   const StoreShell({super.key});
@@ -19,7 +18,6 @@ class _StoreShellState extends ConsumerState<StoreShell> {
 
   static const _pages = [
     MyPacasScreen(),
-    StorePublishTab(),
     BrandScreen(),
     StoreProScreen(),
   ];
@@ -33,19 +31,14 @@ class _StoreShellState extends ConsumerState<StoreShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Pacas',
+            icon: Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront),
+            label: 'Tienda',
           ),
           NavigationDestination(
-            icon: Icon(Icons.share_outlined),
-            selectedIcon: Icon(Icons.share),
-            label: 'Publicar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.palette_outlined),
-            selectedIcon: Icon(Icons.palette),
-            label: 'Marca',
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
           ),
           NavigationDestination(
             icon: Icon(Icons.workspace_premium_outlined),
@@ -58,7 +51,7 @@ class _StoreShellState extends ConsumerState<StoreShell> {
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/store/paca/new'),
               icon: const Icon(Icons.add),
-              label: const Text('Nueva paca'),
+              label: const Text('Nuevo producto'),
             )
           : null,
     );

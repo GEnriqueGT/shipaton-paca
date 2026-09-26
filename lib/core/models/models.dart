@@ -21,6 +21,7 @@ class Profile {
     this.department,
     this.phoneWhatsapp,
     this.logoUrl,
+    this.coverUrl,
     this.brandColor = '#1B5E20',
   });
 
@@ -30,6 +31,7 @@ class Profile {
   final String? department;
   final String? phoneWhatsapp;
   final String? logoUrl;
+  final String? coverUrl;
   final String brandColor;
 
   factory Profile.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class Profile {
       department: json['department'] as String?,
       phoneWhatsapp: json['phone_whatsapp'] as String?,
       logoUrl: json['logo_url'] as String?,
+      coverUrl: json['cover_url'] as String?,
       brandColor: (json['brand_color'] as String?) ?? '#1B5E20',
     );
   }
@@ -51,6 +54,7 @@ class Profile {
       if (department != null) 'department': department,
       if (phoneWhatsapp != null) 'phone_whatsapp': phoneWhatsapp,
       if (logoUrl != null) 'logo_url': logoUrl,
+      if (coverUrl != null) 'cover_url': coverUrl,
       'brand_color': brandColor,
     };
   }
@@ -61,6 +65,7 @@ class Profile {
     String? department,
     String? phoneWhatsapp,
     String? logoUrl,
+    String? coverUrl,
     String? brandColor,
   }) {
     return Profile(
@@ -70,6 +75,7 @@ class Profile {
       department: department ?? this.department,
       phoneWhatsapp: phoneWhatsapp ?? this.phoneWhatsapp,
       logoUrl: logoUrl ?? this.logoUrl,
+      coverUrl: coverUrl ?? this.coverUrl,
       brandColor: brandColor ?? this.brandColor,
     );
   }
@@ -100,6 +106,7 @@ class Paca {
     this.category,
     this.sizeMix,
     this.photoUrls = const [],
+    this.adUrl,
     this.status = PacaStatus.draft,
     this.createdAt,
     this.storeName,
@@ -115,7 +122,15 @@ class Paca {
   final String? category;
   final String? sizeMix;
   final List<String> photoUrls;
+  final String? adUrl;
   final PacaStatus status;
+
+  /// AI ad when it exists, otherwise the original photo.
+  String? get heroUrl {
+    if (adUrl != null && adUrl!.isNotEmpty) return adUrl;
+    if (photoUrls.isNotEmpty) return photoUrls.first;
+    return null;
+  }
   final DateTime? createdAt;
   final String? storeName;
   final String? storePhone;
@@ -135,6 +150,7 @@ class Paca {
       photoUrls: photos is List
           ? photos.map((e) => e.toString()).toList()
           : const [],
+      adUrl: json['ad_url'] as String?,
       status: PacaStatus.parse((json['status'] as String?) ?? 'draft'),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'] as String)
