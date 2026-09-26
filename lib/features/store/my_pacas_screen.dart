@@ -47,6 +47,14 @@ class MyPacasScreen extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 96),
               children: [
                 _StoreHeader(profile: profile, brand: brand),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push('/store/promos'),
+                    icon: const Icon(Icons.local_offer_outlined),
+                    label: const Text('Promociones'),
+                  ),
+                ),
                 if (items.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(24),

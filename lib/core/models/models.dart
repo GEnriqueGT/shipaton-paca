@@ -162,12 +162,35 @@ class Paca {
   }
 }
 
+enum PromoKind {
+  discount,
+  bundle,
+  other;
+
+  String get dbValue => name;
+
+  String get label => switch (this) {
+        PromoKind.discount => 'Descuento',
+        PromoKind.bundle => 'Compra varias prendas',
+        PromoKind.other => 'Otro',
+      };
+
+  static PromoKind parse(String? value) {
+    for (final kind in PromoKind.values) {
+      if (kind.name == value) return kind;
+    }
+    return PromoKind.discount;
+  }
+}
+
 class Promotion {
   const Promotion({
     required this.id,
     required this.storeId,
     required this.title,
     this.pacaId,
+    this.kind = PromoKind.discount,
+    this.bundleQty,
     this.discountLabel,
     this.startsAt,
     this.endsAt,
@@ -179,11 +202,29 @@ class Promotion {
   final String storeId;
   final String? pacaId;
   final String title;
+  final PromoKind kind;
+  final int? bundleQty;
   final String? discountLabel;
   final DateTime? startsAt;
   final DateTime? endsAt;
   final bool premiumOnly;
   final String? storeName;
+
+  /// What the buyer gets. Hidden until they have buyer premium.
+  String get benefit {
+    switch (kind) {
+      case PromoKind.discount:
+        return discountLabel?.trim() ?? '';
+      case PromoKind.bundle:
+        final qty = bundleQty;
+        final reward = discountLabel?.trim();
+        final base = qty == null ? 'Compra varias prendas' : 'Compra $qty prendas';
+        if (reward == null || reward.isEmpty) return base;
+        return '$base · $reward';
+      case PromoKind.other:
+        return discountLabel?.trim() ?? '';
+    }
+  }
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
     final store = json['profiles'] as Map<String, dynamic>?;
@@ -192,6 +233,8 @@ class Promotion {
       storeId: json['store_id'] as String,
       pacaId: json['paca_id'] as String?,
       title: json['title'] as String,
+      kind: PromoKind.parse(json['kind'] as String?),
+      bundleQty: (json['bundle_qty'] as num?)?.toInt(),
       discountLabel: json['discount_label'] as String?,
       startsAt: json['starts_at'] != null
           ? DateTime.tryParse(json['starts_at'] as String)

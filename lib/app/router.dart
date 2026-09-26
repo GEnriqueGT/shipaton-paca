@@ -13,6 +13,7 @@ import '../features/buyer/paca_detail_screen.dart';
 import '../features/paywall/paywall_screen.dart';
 import '../features/store/paca_form_screen.dart';
 import '../features/store/publish_screen.dart';
+import '../features/store/store_promos_screen.dart';
 import '../features/store/store_shell.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -95,6 +96,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'publish/:id',
             builder: (context, state) =>
                 PublishScreen(pacaId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'promos',
+            builder: (context, state) => const StorePromosScreen(),
           ),
         ],
       ),

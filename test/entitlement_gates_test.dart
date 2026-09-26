@@ -40,6 +40,20 @@ void main() {
       expect(gates.canViewExclusivePromos(UserRole.store), isFalse);
     });
 
+    test('only a premium store can create promos', () {
+      const free = EntitlementGates(
+        hasStorePremium: false,
+        hasBuyerPremium: false,
+      );
+      const storePro = EntitlementGates(
+        hasStorePremium: true,
+        hasBuyerPremium: false,
+      );
+      expect(free.canCreatePromos(UserRole.store), isFalse);
+      expect(storePro.canCreatePromos(UserRole.store), isTrue);
+      expect(storePro.canCreatePromos(UserRole.buyer), isFalse);
+    });
+
     test('entitlement ids match role', () {
       const gates = EntitlementGates(
         hasStorePremium: false,

@@ -66,11 +66,18 @@ class ProfileRepository {
     return _client.storage.from('store-logos').getPublicUrl(path);
   }
 
+  /// Profiles that have at least one published product.
+  /// The current role is ignored: switching the same account to buyer
+  /// must not hide a store that still has active products.
   Future<List<Profile>> listStores() async {
-    final rows =
-        await _client.from('profiles').select().eq('role', 'store');
+    final rows = await _client
+        .from('profiles')
+        .select('*, pacas!inner(id)')
+        .eq('pacas.status', 'active');
+    final seen = <String>{};
     return (rows as List)
         .map((e) => Profile.fromJson(Map<String, dynamic>.from(e as Map)))
+        .where((profile) => seen.add(profile.id))
         .toList();
   }
 }
@@ -239,21 +246,35 @@ class PromotionRepository {
         .toList();
   }
 
+  Future<List<Promotion>> listForStore(String storeId) async {
+    final rows = await _client
+        .from('promotions')
+        .select()
+        .eq('store_id', storeId)
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .map((e) => Promotion.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
   Future<Promotion> create({
     required String storeId,
     required String title,
+    required PromoKind kind,
     String? pacaId,
     String? discountLabel,
-    bool premiumOnly = true,
+    int? bundleQty,
   }) async {
     final data = await _client
         .from('promotions')
         .insert({
           'store_id': storeId,
           'title': title,
+          'kind': kind.dbValue,
           'paca_id': pacaId,
           'discount_label': discountLabel,
-          'premium_only': premiumOnly,
+          'bundle_qty': bundleQty,
+          'premium_only': true,
           'starts_at': DateTime.now().toIso8601String(),
         })
         .select()
@@ -296,6 +317,8 @@ class DemoStore {
         id: 'demo-promo-1',
         storeId: 'demo-user',
         title: '2x1 en zapatos de paca',
+        kind: PromoKind.bundle,
+        bundleQty: 2,
         discountLabel: '2x1',
         premiumOnly: true,
         storeName: 'Pacas Zona 1',

@@ -23,87 +23,75 @@ class BuyerPromosScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gates = ref.watch(entitlementGatesProvider);
     ref.watch(demoPremiumTickProvider);
-    final canView = gates.hasBuyerPremium;
+    final canRedeem = gates.hasBuyerPremium;
     final promos = ref.watch(promotionsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Promociones')),
-      body: !canView
-          ? _LockedPromos(onUpgrade: () => context.push('/paywall?role=buyer'))
-          : promos.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('$e')),
-              data: (items) {
-                final exclusive =
-                    items.where((p) => p.premiumOnly).toList();
-                if (exclusive.isEmpty) {
-                  return const Center(
-                    child: Text('No hay promos exclusivas por ahora'),
-                  );
-                }
-                return ListView.separated(
+      body: promos.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('$e')),
+        data: (items) {
+          if (items.isEmpty) {
+            return const Center(child: Text('No hay promociones por ahora'));
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, i) {
+              final promo = items[i];
+              return Card(
+                child: Padding(
                   padding: const EdgeInsets.all(16),
-                  itemCount: exclusive.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final promo = exclusive[i];
-                    return ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        promo.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${promo.storeName ?? 'Tienda'} · ${promo.kind.label}',
+                      ),
+                      const SizedBox(height: 12),
+                      if (canRedeem)
+                        Text(
+                          promo.benefit.isEmpty
+                              ? 'Promoción activa'
+                              : promo.benefit,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        )
+                      else ...[
+                        const Row(
+                          children: [
+                            Icon(Icons.lock_outline, size: 18),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Suscríbete para obtener esta promoción',
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      leading: const Icon(Icons.local_offer),
-                      title: Text(promo.title),
-                      subtitle: Text(
-                        '${promo.storeName ?? 'Tienda'}'
-                        '${promo.discountLabel != null ? ' · ${promo.discountLabel}' : ''}',
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-    );
-  }
-}
-
-class _LockedPromos extends StatelessWidget {
-  const _LockedPromos({required this.onUpgrade});
-
-  final VoidCallback onUpgrade;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.lock,
-            size: 64,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Promos exclusivas de ropa',
-            style: Theme.of(context).textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Con Comprador Pro ves descuentos y ofertas premium_only '
-            'de tiendas de pacas en Guatemala.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: onUpgrade,
-            child: const Text('Desbloquear con buyer_premium'),
-          ),
-        ],
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FilledButton(
+                            onPressed: () =>
+                                context.push('/paywall?role=buyer'),
+                            child: const Text('Ver con Comprador Pro'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

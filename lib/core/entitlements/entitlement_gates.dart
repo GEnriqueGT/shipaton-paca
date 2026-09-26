@@ -21,6 +21,11 @@ class EntitlementGates {
     return hasBuyerPremium;
   }
 
+  bool canCreatePromos(UserRole? role) {
+    if (role != UserRole.store) return false;
+    return hasStorePremium;
+  }
+
   String postTemplateFor(UserRole? role) {
     return canUseBrandedTemplate(role) ? 'branded' : 'plain';
   }

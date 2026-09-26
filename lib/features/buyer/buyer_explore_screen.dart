@@ -16,6 +16,9 @@ final exploreStoresProvider = FutureProvider.autoDispose<List<Profile>>((ref) as
   final department = ref.watch(exploreFiltersProvider);
   if (!AppConfig.hasSupabase) {
     DemoStore.instance.seedIfNeeded();
+    final published = DemoStore.instance.pacas
+        .any((paca) => paca.status == PacaStatus.active);
+    if (!published) return [];
     final profile = DemoStore.instance.profile ??
         const Profile(
           id: 'demo-user',
