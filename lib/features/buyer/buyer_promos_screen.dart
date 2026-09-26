@@ -48,13 +48,18 @@ class BuyerPromosScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
+                        'Tienda: ${promo.storeName ?? 'Tienda'}',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
                         promo.title,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '${promo.storeName ?? 'Tienda'} · ${promo.kind.label}',
-                      ),
+                      Text(promo.kind.label),
                       const SizedBox(height: 12),
                       if (canRedeem)
                         Text(
